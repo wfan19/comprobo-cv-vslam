@@ -25,7 +25,7 @@ if(BUILD_TESTING)
 endif()
 
 install(
-  DIRECTORY launch cameras
+  DIRECTORY launch cameras config
   DESTINATION share/${PROJECT_NAME}
 )
 
