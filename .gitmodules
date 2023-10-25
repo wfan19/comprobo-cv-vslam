@@ -1,0 +1,3 @@
+[submodule "symforce"]
+	path = symforce
+	url = git@github.com:symforce-org/symforce.git
