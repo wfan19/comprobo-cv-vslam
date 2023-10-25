@@ -24,6 +24,14 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
+add_executable(vslam_node src/vslam_node.cpp)
+ament_target_dependencies(vslam_node rclcpp)
+
+install(
+  TARGETS vslam_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 install(
   DIRECTORY launch cameras config
   DESTINATION share/${PROJECT_NAME}
