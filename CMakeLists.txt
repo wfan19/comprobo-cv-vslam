@@ -7,6 +7,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -36,6 +37,13 @@ install(
   DIRECTORY launch cameras config
   DESTINATION share/${PROJECT_NAME}
 )
+
+install(PROGRAMS
+  symforce_vslam/main.py
+  symforce_vslam/slam_offline.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+ament_python_install_package(symforce_vslam)
 
 
 ament_package()
