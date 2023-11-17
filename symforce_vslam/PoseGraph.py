@@ -60,8 +60,7 @@ class PoseGraph():
         g_tag_corners = [g_tag_c1, g_tag_c2, g_tag_c3, g_tag_c4]
         g_tag_ci = g_tag_corners[i_corner]
 
-        camera_noise = DiagonalNoiseModel.from_sigmas(sf.Vector2([10, 10]))
-
+        camera_noise = DiagonalNoiseModel.from_sigmas(sf.Vector2([20, 20]))
         def residual_tag_obs(robot_pose: sf.Pose3, tag_pose: sf.Pose3, corners_px_measured: sf.M12, epsilon: sf.Scalar):
             # Measure the error between the expected pixel coordinates of the tag corners
             # versus the actual measured ones.
@@ -77,6 +76,20 @@ class PoseGraph():
         
             return camera_noise.whiten(sf.Vector2(corners_px_measured.T - corners_px_expected))
         return residual_tag_obs
+
+    def add_prior_factor(self, prior_pose: sf.Pose3):
+        prior_noise = DiagonalNoiseModel.from_sigmas(sf.Vector6([
+            0.02, 0.02, 0.02, 0.02, 0.02, 0.02
+        ]))
+        def prior_residual(measured_pose: sf.Pose3, epsilon: sf.Scalar):
+            # Prior residual = prior_pose - measured_pose
+            pose_diff = measured_pose.local_coordinates(prior_pose, epsilon)
+            return prior_noise.whiten(sf.Vector6(pose_diff))
+
+        self.factors.append(Factor(
+            residual=prior_residual,
+            keys=["poses[0]", "epsilon"]
+        ))
 
     def add_tag_factors(self, msg_detections):
         for detection in msg_detections:
@@ -123,7 +136,7 @@ class PoseGraph():
 
     def add_odometry_factor(self, delta_pose):
         odometry_noise = DiagonalNoiseModel.from_sigmas(sf.Vector6([
-            0.01, 0.01, 0.01, np.deg2rad(5), np.deg2rad(5), np.deg2rad(5)
+            0.05, 0.05, 0.05, np.deg2rad(0.001), np.deg2rad(0.001), np.deg2rad(0.5)
         ]))
 
         # Residual function generator

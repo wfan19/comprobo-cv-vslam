@@ -84,14 +84,14 @@ def plot_optimization_results(initial_values, result):
         x = tag_t[:, 0],
         y = tag_t[:, 1],
         z = tag_t[:, 2],
-        mode="markers",
         name="tags",
+        mode="markers",
         marker={
             "color": "black"
         }
     ))
 
-    fig.update_layout(scene_aspectmode="data", scene=dict(zaxis=dict(range=[-0.25, 0.25])))
+    fig.update_layout(scene_aspectmode="data", scene=dict(zaxis=dict(range=[-1, 1])))
     fig.show()
 
 # Supporting functions
@@ -109,6 +109,7 @@ def main():
     ## Pose graph length parameters
     start_factor = 300
     n_factors = 7500
+    WARM_START=False
 
     # Fetch teh bag file 
     path = "../bags/dataset_drive_square_no_vid"
@@ -122,6 +123,8 @@ def main():
     last_odom_time = 0
     i_pose = 0
     last_soln = None
+    pg.add_prior_factor(sf.Pose3.identity())
+
     for i in range(start_factor, start_factor + n_factors):
         topic, bdata, time = msgs[i]
         data = f_deserialize_msg(msgs[i])
@@ -144,22 +147,24 @@ def main():
             i_pose += 1
 
             # Solve the optimization problem every 10 factors added
-            if (len(pg.factors) > 10) and (len(pg.factors) % 10 == 0):
-                print(f"Optimizing graph of size {len(pg.factors)}")
-                result = pg.solve()
+            if WARM_START:
+                if (len(pg.factors) > 10) and (len(pg.factors) % 10 == 0):
+                    print(f"Optimizing graph of size {len(pg.factors)}")
+                    result = pg.solve()
 
-                # Save the iterated solution to warm start the next solve
-                sym_opt_poses = [sf.Pose3.from_storage(pose.to_storage()) for pose in result.optimized_values["poses"]]
-                sym_opt_tag_poses = [sf.Pose3.from_storage(pose.to_storage()) for pose in result.optimized_values["tag_poses"]]
+                    # Save the iterated solution to warm start the next solve
+                    sym_opt_poses = [sf.Pose3.from_storage(pose.to_storage()) for pose in result.optimized_values["poses"]]
+                    sym_opt_tag_poses = [sf.Pose3.from_storage(pose.to_storage()) for pose in result.optimized_values["tag_poses"]]
 
-                pg.poses = sym_opt_poses
-                pg.initial_tag_poses = sym_opt_tag_poses
+                    pg.poses = sym_opt_poses
+                    pg.initial_tag_poses = sym_opt_tag_poses
             
         elif topic == "/detections" and (time - last_odom_time) * 1e-9 < 0.02:
             pg.add_tag_factors(data.detections)
 
 
     initial_values = pg.make_initial_values()
+    result = pg.solve()
     plot_optimization_results(initial_values, result)
 
 
