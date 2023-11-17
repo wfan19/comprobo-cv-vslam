@@ -3,6 +3,7 @@ import numpy as np
 import symforce
 symforce.set_epsilon_to_symbol()
 import symforce.symbolic as sf
+from symforce.geo import Pose3, Rot3
 from symforce.cam import camera_cal
 from symforce.opt.noise_models import DiagonalNoiseModel
 from symforce.opt.optimizer import Optimizer
@@ -10,6 +11,8 @@ from symforce.opt.factor import Factor
 from symforce.values import Values
 
 import cv2 as cv
+
+import copy
 
 class PoseGraph():
 
@@ -143,15 +146,9 @@ class PoseGraph():
             keys=[f"poses[{i_pose}]", f"poses[{i_pose+1}]", f"odoms[{i_pose}]", "epsilon"]
         ))
 
-
-    def solve(self):
+    def make_initial_values(self):
         # Populate the detection arrays with a 0 for any tag without any detections
         # This is because symforce expects a certain full-dimensionality for all parts of an array
-        for i, detection_list in enumerate(self.detections):
-            if self.n_detections[i] == 0:
-                self.detections[i] = [[0]]
-                self.initial_tag_poses[i] = sf.Pose3.identity()
-
         initial_values = Values(
             poses = self.poses,
             odoms = self.odoms,
@@ -159,6 +156,19 @@ class PoseGraph():
             tag_poses = self.initial_tag_poses,
             epsilon = sf.numeric_epsilon
         )
+
+        modified_vals = Values.copy(initial_values)
+
+        for i, detection_list in enumerate(self.detections):
+            if self.n_detections[i] == 0:
+                modified_vals["detections"][i] = [[0]]
+                modified_vals["tag_poses"][i] = sf.Pose3.identity()
+
+        return modified_vals
+
+    def solve(self, initial_values=None):
+        if initial_values is None:
+            initial_values = self.make_initial_values()
 
         ## Solve the optimization problem
         n_poses = len(self.poses)
@@ -172,4 +182,4 @@ class PoseGraph():
             debug_stats=True,
         )
         result = optimizer.optimize(initial_values)
-        return result, initial_values
+        return result

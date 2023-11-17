@@ -121,6 +121,7 @@ def main():
     last_odom_pose = sf.Pose3.identity()
     last_odom_time = 0
     i_pose = 0
+    last_soln = None
     for i in range(start_factor, start_factor + n_factors):
         topic, bdata, time = msgs[i]
         data = f_deserialize_msg(msgs[i])
@@ -141,12 +142,24 @@ def main():
             last_odom_time = time
 
             i_pose += 1
+
+            # Solve the optimization problem every 10 factors added
+            if (len(pg.factors) > 10) and (len(pg.factors) % 10 == 0):
+                print(f"Optimizing graph of size {len(pg.factors)}")
+                result = pg.solve()
+
+                # Save the iterated solution to warm start the next solve
+                sym_opt_poses = [sf.Pose3.from_storage(pose.to_storage()) for pose in result.optimized_values["poses"]]
+                sym_opt_tag_poses = [sf.Pose3.from_storage(pose.to_storage()) for pose in result.optimized_values["tag_poses"]]
+
+                pg.poses = sym_opt_poses
+                pg.initial_tag_poses = sym_opt_tag_poses
             
         elif topic == "/detections" and (time - last_odom_time) * 1e-9 < 0.02:
             pg.add_tag_factors(data.detections)
 
-    ## Solve the optimization problem
-    result, initial_values = pg.solve()
+
+    initial_values = pg.make_initial_values()
     plot_optimization_results(initial_values, result)
 
 
