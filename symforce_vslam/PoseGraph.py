@@ -5,7 +5,7 @@ symforce.set_epsilon_to_symbol()
 import symforce.symbolic as sf
 from symforce.geo import Pose3, Rot3
 from symforce.cam import camera_cal
-from symforce.opt.noise_models import DiagonalNoiseModel
+from symforce.opt.noise_models import DiagonalNoiseModel, BarronNoiseModel
 from symforce.opt.optimizer import Optimizer
 from symforce.opt.factor import Factor
 from symforce.values import Values
@@ -146,8 +146,18 @@ class PoseGraph():
             rdelta_expected = pose_1.inverse() * pose_2
 
             # The "error": rdelta_expected ⊟ rdelta_measured
-            error = rdelta_measured.local_coordinates(rdelta_expected, epsilon)
-            return odometry_noise.whiten(sf.Vector6(error))
+            posn_noise_model = BarronNoiseModel(0.5, 1/0.05**2, epsilon, delta=0.2)
+            rotxy_noise_model = BarronNoiseModel(0.5, 1/np.deg2rad(0.001)**2, epsilon, delta=0.1)
+            rot_z_noise_model = BarronNoiseModel(0.5, 1/np.deg2rad(0.5)**2, epsilon, delta=np.deg2rad(5))
+            error = sf.Vector6(rdelta_measured.local_coordinates(rdelta_expected, epsilon))
+            return sf.Vector6([
+                posn_noise_model.whiten_scalar(error[0]),
+                posn_noise_model.whiten_scalar(error[1]),
+                posn_noise_model.whiten_scalar(error[2]),
+                rotxy_noise_model.whiten_scalar(error[3]),
+                rotxy_noise_model.whiten_scalar(error[4]),
+                rot_z_noise_model.whiten_scalar(error[5])
+            ])
 
         # Code to add the factor
         self.odoms.append(delta_pose)
